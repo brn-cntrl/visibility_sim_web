@@ -1,0 +1,247 @@
+.visibility-sim {
+  display: flex;
+  height: 100vh;
+  background-color: #f5f5f5;
+}
+
+.side-menu {
+  width: 320px;
+  background-color: #2c3e50;
+  color: white;
+  padding: 20px;
+  overflow-y: auto;
+  box-shadow: 2px 0 5px rgba(0, 0, 0, 0.1);
+}
+
+.side-menu h2 {
+  margin-top: 0;
+  margin-bottom: 30px;
+  font-size: 24px;
+  border-bottom: 2px solid #3498db;
+  padding-bottom: 10px;
+}
+
+.side-menu h3 {
+  font-size: 16px;
+  margin-top: 20px;
+  margin-bottom: 15px;
+  color: #3498db;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.menu-section {
+  margin-bottom: 30px;
+}
+
+.side-menu button {
+  width: 100%;
+  padding: 12px 20px;
+  background-color: #3498db;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  margin-bottom: 10px;
+}
+
+.side-menu button:hover:not(:disabled) {
+  background-color: #2980b9;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.side-menu button:disabled {
+  background-color: #7f8c8d;
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.file-info {
+  background-color: rgba(52, 152, 219, 0.1);
+  border-left: 3px solid #3498db;
+  padding: 12px;
+  margin-top: 15px;
+  border-radius: 3px;
+}
+
+.file-info p {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.file-info strong {
+  color: #3498db;
+}
+
+.status-message {
+  background-color: rgba(52, 152, 219, 0.2);
+  padding: 15px;
+  border-radius: 5px;
+  margin-top: 15px;
+  text-align: center;
+}
+
+.status-message.loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.spinner {
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  border-top: 3px solid #3498db;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.api-response {
+  background-color: rgba(255, 255, 255, 0.1);
+  padding: 15px;
+  border-radius: 5px;
+  margin-top: 15px;
+  border-left: 4px solid #3498db;
+}
+
+.api-response.success {
+  border-left-color: #27ae60;
+  background-color: rgba(39, 174, 96, 0.1);
+}
+
+.api-response.error {
+  border-left-color: #e74c3c;
+  background-color: rgba(231, 76, 60, 0.1);
+}
+
+.api-response h4 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.response-status {
+  margin-bottom: 10px;
+  font-size: 14px;
+}
+
+.response-status .success {
+  color: #27ae60;
+  font-weight: bold;
+}
+
+.response-status .error {
+  color: #e74c3c;
+  font-weight: bold;
+}
+
+.response-message {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.error-hint {
+  margin-top: 10px;
+  font-size: 12px;
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.info-text {
+  font-size: 14px;
+  line-height: 1.6;
+  opacity: 0.9;
+  margin: 10px 0;
+}
+
+details {
+  margin-top: 15px;
+  cursor: pointer;
+}
+
+summary {
+  padding: 10px;
+  background-color: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+  font-weight: 600;
+  user-select: none;
+  transition: background-color 0.2s;
+}
+
+summary:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.geometry-list {
+  margin-top: 10px;
+  padding: 10px;
+  background-color: rgba(0, 0, 0, 0.2);
+  border-radius: 3px;
+  font-size: 13px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.geometry-item {
+  padding: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  margin-bottom: 5px;
+}
+
+.geometry-item:last-child {
+  border-bottom: none;
+  margin-bottom: 0;
+}
+
+.canvas-container {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.canvas-container canvas {
+  width: 100%;
+  height: 100%;
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  cursor: crosshair;
+}
+
+/* Scrollbar styling */
+.side-menu::-webkit-scrollbar,
+.geometry-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.side-menu::-webkit-scrollbar-track,
+.geometry-list::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 4px;
+}
+
+.side-menu::-webkit-scrollbar-thumb,
+.geometry-list::-webkit-scrollbar-thumb {
+  background: rgba(52, 152, 219, 0.5);
+  border-radius: 4px;
+}
+
+.side-menu::-webkit-scrollbar-thumb:hover,
+.geometry-list::-webkit-scrollbar-thumb:hover {
+  background: rgba(52, 152, 219, 0.8);
+}

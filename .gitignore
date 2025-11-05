@@ -1,0 +1,27 @@
+# === FRONTEND (React) ===
+frontend/node_modules/
+frontend/build/
+frontend/dist/
+
+# Environment variables
+frontend/.env
+frontend/.env.*.local
+
+# Logs
+frontend/npm-debug.log*
+frontend/yarn-debug.log*
+frontend/yarn-error.log*
+
+# Editor settings
+frontend/.vscode/
+frontend/.idea/
+
+# === BACKEND (if using Node/Express) ===
+backend/node_modules/
+backend/.env
+backend/npm-debug.log*
+
+# === GENERAL (OS & Editor) ===
+.DS_Store
+Thumbs.db
+.vscode/
