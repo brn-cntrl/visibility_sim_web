@@ -25,3 +25,9 @@ backend/npm-debug.log*
 .DS_Store
 Thumbs.db
 .vscode/
+
+# === ASSETS ===
+floorplan_cleaned.svg
+floorplan_preview.svg
+floorplan.geojson
+__pycache__/
