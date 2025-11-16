@@ -8,29 +8,39 @@ function VisibilitySim() {
   const [loading, setLoading] = useState(false);
   const [floorplanData, setFloorplanData] = useState(null);
   const [geometries, setGeometries] = useState([]);
+  
+  // New state for visibility polygon
+  const [pointOfView, setPointOfView] = useState(null);
+  const [visibilityPolygon, setVisibilityPolygon] = useState(null);
+  const [showVisibilityPolygon, setShowVisibilityPolygon] = useState(true);
+  const [computingVisibility, setComputingVisibility] = useState(false);
+  
+  // Store canvas transform parameters for coordinate conversion
+  const [canvasTransform, setCanvasTransform] = useState({
+    scale: 1,
+    offsetX: 0,
+    offsetY: 0
+  });
 
   // Initialize canvas
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas) {
       const ctx = canvas.getContext('2d');
-      // Set canvas size to match display size
       canvas.width = canvas.offsetWidth;
       canvas.height = canvas.offsetHeight;
-
       drawInitialCanvas(ctx, canvas);
     }
   }, []);
 
-  // Redraw canvas when floorplan data changes
+  // Redraw canvas when any visualization data changes
   useEffect(() => {
     if (floorplanData && canvasRef.current) {
       drawFloorplan(floorplanData);
     }
-  }, [floorplanData]);
+  }, [floorplanData, pointOfView, visibilityPolygon, showVisibilityPolygon]);
 
   const drawInitialCanvas = (ctx, canvas) => {
-    // Draw initial placeholder
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.strokeStyle = '#cccccc';
@@ -56,30 +66,50 @@ function VisibilitySim() {
     // Calculate scale to fit canvas
     const scaleX = canvas.width / viewbox.width;
     const scaleY = canvas.height / viewbox.height;
-    const scale = Math.min(scaleX, scaleY) * 0.9; // 90% to add padding
+    const scale = Math.min(scaleX, scaleY) * 0.9;
     
     // Calculate offset to center the drawing
     const offsetX = (canvas.width - viewbox.width * scale) / 2;
     const offsetY = (canvas.height - viewbox.height * scale) / 2;
     
-    // Draw each geometry
+    // Store transform for coordinate conversion
+    setCanvasTransform({ scale, offsetX, offsetY });
+    
+    // Draw visibility polygon first (if exists and visible)
+    if (showVisibilityPolygon && visibilityPolygon && visibilityPolygon.length > 0) {
+      ctx.fillStyle = 'rgba(80, 140, 200, 0.3)';
+      ctx.strokeStyle = 'rgba(80, 140, 200, 0.8)';
+      ctx.lineWidth = 2;
+      
+      ctx.beginPath();
+      const firstPoint = visibilityPolygon[0];
+      ctx.moveTo(firstPoint[0], firstPoint[1]);
+      
+      for (let i = 1; i < visibilityPolygon.length; i++) {
+        const point = visibilityPolygon[i];
+        ctx.lineTo(point[0], point[1]);
+      }
+      
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+    
+    // Draw floor plan geometries
     ctx.strokeStyle = '#000000';
     ctx.lineWidth = 2;
-    ctx.fillStyle = 'none';
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.8)';
     
     geometries.forEach((geom) => {
       if (geom.points.length < 2) return;
       
       ctx.beginPath();
-      
-      // Move to first point
       const firstPoint = geom.points[0];
       ctx.moveTo(
         offsetX + firstPoint[0] * scale,
         offsetY + firstPoint[1] * scale
       );
       
-      // Draw lines to subsequent points
       for (let i = 1; i < geom.points.length; i++) {
         const point = geom.points[i];
         ctx.lineTo(
@@ -88,28 +118,44 @@ function VisibilitySim() {
         );
       }
       
-      // Close the path
       ctx.closePath();
+      ctx.fill();
       ctx.stroke();
     });
+    
+    // Draw point of view (if exists)
+    if (pointOfView) {
+      // Draw outer circle (white outline)
+      ctx.fillStyle = '#ffffff';
+      ctx.strokeStyle = '#333333';
+      ctx.lineWidth = 2;
+      ctx.beginPath();
+      ctx.arc(pointOfView.x, pointOfView.y, 8, 0, 2 * Math.PI);
+      ctx.fill();
+      ctx.stroke();
+      
+      // Draw inner circle (blue)
+      ctx.fillStyle = '#3498db';
+      ctx.beginPath();
+      ctx.arc(pointOfView.x, pointOfView.y, 5, 0, 2 * Math.PI);
+      ctx.fill();
+    }
     
     // Draw info text
     ctx.fillStyle = '#333333';
     ctx.font = '14px Arial';
     ctx.textAlign = 'left';
-    ctx.fillText(
-      `Obstacles: ${geometries.length} | Canvas: ${viewbox.width.toFixed(0)}x${viewbox.height.toFixed(0)}`,
-      10,
-      canvas.height - 10
-    );
+    let infoText = `Obstacles: ${geometries.length} | Canvas: ${viewbox.width.toFixed(0)}x${viewbox.height.toFixed(0)}`;
+    if (pointOfView) {
+      infoText += ` | POV: (${Math.round(pointOfView.canvasX)}, ${Math.round(pointOfView.canvasY)})`;
+    }
+    ctx.fillText(infoText, 10, canvas.height - 10);
   };
 
-  // Handle import button click
   const handleImport = () => {
     fileInputRef.current.click();
   };
 
-  // Handle file selection
   const handleFileSelect = async (event) => {
     const file = event.target.files[0];
     
@@ -117,7 +163,6 @@ function VisibilitySim() {
       return;
     }
 
-    // Validate file type
     if (!file.name.toLowerCase().endsWith('.svg')) {
       setApiResponse({
         status: 'error',
@@ -143,7 +188,10 @@ function VisibilitySim() {
       if (data.status === 'success') {
         setApiResponse(data);
         setFloorplanData(data.data);
-        setGeometries(data.data.geometries); // Store geometries array for later use
+        setGeometries(data.data.geometries);
+        // Reset POV and visibility when loading new floorplan
+        setPointOfView(null);
+        setVisibilityPolygon(null);
       } else {
         setApiResponse(data);
       }
@@ -154,14 +202,112 @@ function VisibilitySim() {
       });
     } finally {
       setLoading(false);
-      // Reset file input
       event.target.value = '';
     }
   };
 
+  const handleCanvasRightClick = async (event) => {
+    event.preventDefault(); // Prevent context menu
+    
+    if (!floorplanData) {
+      return; // No floorplan loaded
+    }
+    
+    const canvas = canvasRef.current;
+    const rect = canvas.getBoundingClientRect();
+    
+    // Get click position relative to canvas
+    const canvasX = event.clientX - rect.left;
+    const canvasY = event.clientY - rect.top;
+    
+    // Convert canvas coordinates to viewbox coordinates
+    const { scale, offsetX, offsetY } = canvasTransform;
+    const viewboxX = (canvasX - offsetX) / scale;
+    const viewboxY = (canvasY - offsetY) / scale;
+    
+    // Set point of view
+    const newPOV = {
+      x: canvasX,
+      y: canvasY,
+      canvasX: canvasX,
+      canvasY: canvasY,
+      viewboxX: viewboxX,
+      viewboxY: viewboxY
+    };
+    
+    setPointOfView(newPOV);
+    
+    // Compute visibility polygon
+    await computeVisibilityPolygon(newPOV);
+  };
+
+  const computeVisibilityPolygon = async (pov) => {
+    setComputingVisibility(true);
+    
+    try {
+      const canvas = canvasRef.current;
+      
+      // Prepare obstacles in viewbox coordinates
+      const obstaclesData = geometries.map(geom => ({
+        points: geom.points
+      }));
+      
+      const response = await fetch('http://localhost:5001/api/visibility-polygon', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          viewpoint: {
+            x: pov.viewboxX,
+            y: pov.viewboxY
+          },
+          obstacles: obstaclesData,
+          canvasWidth: floorplanData.viewbox.width,
+          canvasHeight: floorplanData.viewbox.height
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.status === 'success') {
+        // Convert visibility polygon points from viewbox to canvas coordinates
+        const { scale, offsetX, offsetY } = canvasTransform;
+        const canvasPolygon = data.data.visibilityPolygon.map(point => [
+          offsetX + point[0] * scale,
+          offsetY + point[1] * scale
+        ]);
+        
+        setVisibilityPolygon(canvasPolygon);
+      } else {
+        console.error('Failed to compute visibility polygon:', data.message);
+        setApiResponse({
+          status: 'error',
+          message: 'Failed to compute visibility: ' + data.message
+        });
+      }
+    } catch (error) {
+      console.error('Error computing visibility polygon:', error);
+      setApiResponse({
+        status: 'error',
+        message: 'Error computing visibility: ' + error.message
+      });
+    } finally {
+      setComputingVisibility(false);
+    }
+  };
+
+  const handleToggleVisibility = () => {
+    setShowVisibilityPolygon(!showVisibilityPolygon);
+  };
+
+  const handleClearPOV = () => {
+    setPointOfView(null);
+    setVisibilityPolygon(null);
+  };
+
   return (
     <div className="visibility-sim">
-      {/* Hidden file input */}
       <input
         type="file"
         ref={fileInputRef}
@@ -187,6 +333,49 @@ function VisibilitySim() {
             </div>
           )}
         </div>
+
+        {/* Visibility Controls */}
+        {floorplanData && (
+          <div className="menu-section">
+            <h3>Visibility Controls</h3>
+            
+            <div className="control-info">
+              <p className="instruction">
+                <strong>Right-click</strong> on canvas to place point of view
+              </p>
+            </div>
+            
+            {pointOfView && (
+              <>
+                <div className="pov-info">
+                  <p><strong>Point of View:</strong></p>
+                  <p>Canvas: ({Math.round(pointOfView.canvasX)}, {Math.round(pointOfView.canvasY)})</p>
+                  <p>Viewbox: ({pointOfView.viewboxX.toFixed(1)}, {pointOfView.viewboxY.toFixed(1)})</p>
+                </div>
+                
+                <label className="toggle-container">
+                  <input
+                    type="checkbox"
+                    checked={showVisibilityPolygon}
+                    onChange={handleToggleVisibility}
+                  />
+                  <span className="toggle-label">Show Visibility Polygon</span>
+                </label>
+                
+                <button onClick={handleClearPOV} className="secondary-button">
+                  Clear Point of View
+                </button>
+                
+                {computingVisibility && (
+                  <div className="computing-status">
+                    <div className="spinner"></div>
+                    Computing visibility...
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
 
         {/* Loading indicator */}
         {loading && (
@@ -238,7 +427,10 @@ function VisibilitySim() {
 
       {/* Canvas Area */}
       <div className="canvas-container">
-        <canvas ref={canvasRef}></canvas>
+        <canvas 
+          ref={canvasRef}
+          onContextMenu={handleCanvasRightClick}
+        ></canvas>
       </div>
     </div>
   );

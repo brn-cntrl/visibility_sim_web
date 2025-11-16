@@ -245,3 +245,92 @@ summary:hover {
 .geometry-list::-webkit-scrollbar-thumb:hover {
   background: rgba(52, 152, 219, 0.8);
 }
+
+/* Add after existing styles */
+
+.control-info {
+  background-color: rgba(52, 152, 219, 0.1);
+  border-left: 3px solid #3498db;
+  padding: 12px;
+  margin-bottom: 15px;
+  border-radius: 3px;
+}
+
+.instruction {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.pov-info {
+  background-color: rgba(46, 204, 113, 0.1);
+  border-left: 3px solid #2ecc71;
+  padding: 12px;
+  margin: 15px 0;
+  border-radius: 3px;
+}
+
+.pov-info p {
+  margin: 6px 0;
+  font-size: 13px;
+}
+
+.toggle-container {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background-color: rgba(255, 255, 255, 0.05);
+  border-radius: 5px;
+  cursor: pointer;
+  margin: 15px 0;
+  transition: background-color 0.2s;
+}
+
+.toggle-container:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.toggle-container input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: #3498db;
+}
+
+.toggle-label {
+  font-size: 14px;
+  font-weight: 500;
+  user-select: none;
+}
+
+.secondary-button {
+  width: 100%;
+  padding: 10px 20px;
+  background-color: #95a5a6;
+  color: white;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+}
+
+.secondary-button:hover {
+  background-color: #7f8c8d;
+  transform: translateY(-1px);
+}
+
+.computing-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px;
+  background-color: rgba(52, 152, 219, 0.2);
+  border-radius: 5px;
+  margin-top: 15px;
+  font-size: 13px;
+}
