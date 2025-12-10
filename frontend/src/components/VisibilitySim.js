@@ -8,14 +8,11 @@ function VisibilitySim() {
   const [loading, setLoading] = useState(false);
   const [floorplanData, setFloorplanData] = useState(null);
   const [geometries, setGeometries] = useState([]);
-  
-  // New state for visibility polygon
   const [pointOfView, setPointOfView] = useState(null);
   const [visibilityPolygon, setVisibilityPolygon] = useState(null);
   const [showVisibilityPolygon, setShowVisibilityPolygon] = useState(true);
   const [computingVisibility, setComputingVisibility] = useState(false);
   
-  // Store canvas transform parameters for coordinate conversion
   const [canvasTransform, setCanvasTransform] = useState({
     scale: 1,
     offsetX: 0,
@@ -25,7 +22,6 @@ function VisibilitySim() {
   const [features, setFeatures] = useState({});  // Map: obstacleIndex -> featureData
   const [selectedObstacleIndex, setSelectedObstacleIndex] = useState(null);
 
-  // Collapsible menu sections state
   const [expandedSections, setExpandedSections] = useState({
     fileOperations: true,
     visibilityControls: true,
@@ -40,7 +36,6 @@ function VisibilitySim() {
     }));
   };
   
-  // Initialize canvas
   useEffect(() => {
     const canvas = canvasRef.current;
     if (canvas) {
@@ -84,26 +79,19 @@ function VisibilitySim() {
   const drawFloorplan = useCallback((data) => {
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d');
-    
-    // Clear canvas with white background
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     
     const { geometries, viewbox } = data;
-    
-    // Calculate scale to fit canvas
     const scaleX = canvas.width / viewbox.width;
     const scaleY = canvas.height / viewbox.height;
     const scale = Math.min(scaleX, scaleY) * 0.9;
     
-    // Calculate offset to center the drawing
     const offsetX = (canvas.width - viewbox.width * scale) / 2;
     const offsetY = (canvas.height - viewbox.height * scale) / 2;
     
-    // Store transform for coordinate conversion
     setCanvasTransform({ scale, offsetX, offsetY });
     
-    // Draw visibility polygon first (if exists and visible)
     if (showVisibilityPolygon && visibilityPolygon && visibilityPolygon.length > 0) {
       ctx.fillStyle = 'rgba(80, 140, 200, 0.85)';
       ctx.strokeStyle = 'rgba(80, 140, 200, 1.0)';
@@ -160,13 +148,10 @@ function VisibilitySim() {
       ctx.stroke();
     });
 
-    // Draw features as circles
     Object.values(features).forEach(feature => {      
-      // Recalculate position based on viewbox coordinates
       const canvasX = offsetX + feature.viewboxPosition.x * scale;
       const canvasY = offsetY + feature.viewboxPosition.y * scale;
       
-      // Outer circle (white)
       ctx.fillStyle = '#ffffff';
       ctx.strokeStyle = '#333333';
       ctx.lineWidth = 2;
@@ -174,17 +159,13 @@ function VisibilitySim() {
       ctx.arc(canvasX, canvasY, feature.size, 0, 2 * Math.PI);
       ctx.fill();
       ctx.stroke();
-      
-      // Inner circle (color coded)
       ctx.fillStyle = '#FF6B6B';
       ctx.beginPath();
       ctx.arc(canvasX, canvasY, feature.size * 0.6, 0, 2 * Math.PI);
       ctx.fill();
     });
 
-    // Draw point of view (if exists)
     if (pointOfView) {
-      // Draw outer circle (white outline)
       ctx.fillStyle = '#ffffff';
       ctx.strokeStyle = '#333333';
       ctx.lineWidth = 2;
@@ -192,15 +173,12 @@ function VisibilitySim() {
       ctx.arc(pointOfView.x, pointOfView.y, 8, 0, 2 * Math.PI);
       ctx.fill();
       ctx.stroke();
-      
-      // Draw inner circle (blue)
       ctx.fillStyle = '#3498db';
       ctx.beginPath();
       ctx.arc(pointOfView.x, pointOfView.y, 5, 0, 2 * Math.PI);
       ctx.fill();
     }
     
-    // Draw info text
     ctx.fillStyle = '#333333';
     ctx.font = '14px Arial';
     ctx.textAlign = 'left';
@@ -210,7 +188,7 @@ function VisibilitySim() {
     }
     ctx.fillText(infoText, 10, canvas.height - 10);
   }, [pointOfView, visibilityPolygon, showVisibilityPolygon, features, selectedObstacleIndex]);
-  // Redraw canvas when any visualization data changes
+  
   useEffect(() => {
     if (floorplanData && canvasRef.current) {
       drawFloorplan(floorplanData);
@@ -267,7 +245,6 @@ function VisibilitySim() {
         setApiResponse(data);
         setFloorplanData(data.data);
         setGeometries(data.data.geometries);
-        // Reset POV and visibility when loading new floorplan
         setPointOfView(null);
         setVisibilityPolygon(null);
       } else {
@@ -293,17 +270,12 @@ function VisibilitySim() {
     
     const canvas = canvasRef.current;
     const rect = canvas.getBoundingClientRect();
-    
-    // Get click position relative to canvas
     const canvasX = event.clientX - rect.left;
     const canvasY = event.clientY - rect.top;
-    
-    // Convert canvas coordinates to viewbox coordinates
     const { scale, offsetX, offsetY } = canvasTransform;
     const viewboxX = (canvasX - offsetX) / scale;
     const viewboxY = (canvasY - offsetY) / scale;
     
-    // Set point of view
     const newPOV = {
       x: canvasX,
       y: canvasY,
@@ -315,7 +287,6 @@ function VisibilitySim() {
     
     setPointOfView(newPOV);
     
-    // Compute visibility polygon
     await computeVisibilityPolygon(newPOV);
   };
 
@@ -336,7 +307,6 @@ function VisibilitySim() {
     setComputingVisibility(true);
     
     try {
-      // Prepare obstacles in viewbox coordinates
       const obstaclesData = geometries.map(geom => ({
         points: geom.points
       }));
@@ -360,7 +330,6 @@ function VisibilitySim() {
       const data = await response.json();
 
       if (data.status === 'success') {
-        // Convert visibility polygon points from viewbox to canvas coordinates
         const { scale, offsetX, offsetY } = canvasTransform;
         const canvasPolygon = data.data.visibilityPolygon.map(point => [
           offsetX + point[0] * scale,
@@ -397,16 +366,11 @@ function VisibilitySim() {
 
   const handleAssignFeature = () => {
     if (selectedObstacleIndex === null) return;
-    
-    // Calculate obstacle center in canvas coordinates
+  
     const obstacle = geometries[selectedObstacleIndex];
     const { scale, offsetX, offsetY } = canvasTransform;
-    
-    // Calculate center in viewbox coordinates
     const points = obstacle.points;
     let centerX = 0, centerY = 0;
-    
-    // Check if first and last points are the same (closed polygon)
     let pointsToAverage = points.length;
     const firstPoint = points[0];
     const lastPoint = points[points.length - 1];
@@ -422,11 +386,9 @@ function VisibilitySim() {
     centerX /= pointsToAverage;
     centerY /= pointsToAverage;
     
-    // Convert to canvas coordinates
     const canvasCenterX = offsetX + centerX * scale;
     const canvasCenterY = offsetY + centerY * scale;
     
-    // Create feature with default values (matching C++ struct)
     const newFeature = {
       obstacleIndex: selectedObstacleIndex,
       position: { x: canvasCenterX, y: canvasCenterY },
