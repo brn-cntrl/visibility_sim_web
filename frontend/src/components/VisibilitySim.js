@@ -21,10 +21,15 @@ function VisibilitySim() {
 
   const [features, setFeatures] = useState({});  // Map: obstacleIndex -> featureData
   const [selectedObstacleIndex, setSelectedObstacleIndex] = useState(null);
+  const [allocentricHeatmap, setAllocentricHeatmap] = useState(null);
+  const [showAllocentricHeatmap, setShowAllocentricHeatmap] = useState(false);
+  const [computingHeatmap, setComputingHeatmap] = useState(false);
+  const [heatmapGridResolution, setHeatmapGridResolution] = useState(10);
 
   const [expandedSections, setExpandedSections] = useState({
     fileOperations: true,
     visibilityControls: true,
+    visibilityHeatmaps: true,
     selectedObstacle: true,
     geometryData: false
   });
@@ -91,11 +96,24 @@ function VisibilitySim() {
     const offsetY = (canvas.height - viewbox.height * scale) / 2;
     
     setCanvasTransform({ scale, offsetX, offsetY });
-    
+
+    if (showAllocentricHeatmap && allocentricHeatmap) {
+      allocentricHeatmap.pixels.forEach(pixel => {
+        ctx.fillStyle = pixel.color;
+        ctx.beginPath();
+        const coords = pixel.canvasCoords;
+        ctx.moveTo(coords[0][0], coords[0][1]);
+        for (let i = 1; i < coords.length; i++) {
+          ctx.lineTo(coords[i][0], coords[i][1]);
+        }
+        ctx.closePath();
+        ctx.fill();
+      });
+    }
     if (showVisibilityPolygon && visibilityPolygon && visibilityPolygon.length > 0) {
       ctx.fillStyle = 'rgba(80, 140, 200, 0.85)';
-      ctx.strokeStyle = 'rgba(80, 140, 200, 1.0)';
-      ctx.lineWidth = 3;
+      // ctx.strokeStyle = 'rgba(80, 140, 200, 1.0)';
+      // ctx.lineWidth = 1;
       
       ctx.beginPath();
       const firstPoint = visibilityPolygon[0];
@@ -108,7 +126,7 @@ function VisibilitySim() {
       
       ctx.closePath();
       ctx.fill();
-      ctx.stroke();
+      // ctx.stroke();
     }
     
     geometries.forEach((geom, index) => {
@@ -187,7 +205,7 @@ function VisibilitySim() {
       infoText += ` | POV: (${Math.round(pointOfView.canvasX)}, ${Math.round(pointOfView.canvasY)})`;
     }
     ctx.fillText(infoText, 10, canvas.height - 10);
-  }, [pointOfView, visibilityPolygon, showVisibilityPolygon, features, selectedObstacleIndex]);
+  }, [pointOfView, visibilityPolygon, showVisibilityPolygon, features, selectedObstacleIndex, allocentricHeatmap, showAllocentricHeatmap]);
   
   useEffect(() => {
     if (floorplanData && canvasRef.current) {
@@ -430,6 +448,83 @@ function VisibilitySim() {
     }));
   };
 
+  const handleComputeAllocentricHeatmap = async () => {
+    if (!floorplanData || !geometries) {
+      setApiResponse({
+        status: 'error',
+        message: 'No floorplan loaded'
+      });
+      return;
+    }
+
+    setComputingHeatmap(true);
+    setApiResponse(null);
+
+    try {
+      const obstaclesData = geometries.map(geom => ({
+        points: geom.points
+      }));
+
+      const response = await fetch('http://localhost:5001/api/visibility-heatmap', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          obstacles: obstaclesData,
+          canvasWidth: floorplanData.viewbox.width,
+          canvasHeight: floorplanData.viewbox.height,
+          gridResolution: heatmapGridResolution,
+          rayLength: 3000.0
+        }),
+      });
+
+      const data = await response.json();
+
+      if (data.status === 'success') {
+        const { scale, offsetX, offsetY } = canvasTransform;
+        
+        // Transform heatmap pixels to canvas coordinates
+        const transformedPixels = data.data.pixels.map(pixel => ({
+          ...pixel,
+          canvasCoords: pixel.points.map(([x, y]) => [
+            offsetX + x * scale,
+            offsetY + y * scale
+          ])
+        }));
+
+        setAllocentricHeatmap({
+          pixels: transformedPixels,
+          maxScore: data.data.maxScore,
+          gridResolution: data.data.gridResolution
+        });
+        setShowAllocentricHeatmap(true);
+      } else {
+        setApiResponse({
+          status: 'error',
+          message: 'Failed to compute heatmap: ' + data.message
+        });
+      }
+    } catch (error) {
+      console.error('Error computing heatmap:', error);
+      setApiResponse({
+        status: 'error',
+        message: 'Error computing heatmap: ' + error.message
+      });
+    } finally {
+      setComputingHeatmap(false);
+    }
+  };
+
+  const handleToggleAllocentricHeatmap = () => {
+    setShowAllocentricHeatmap(!showAllocentricHeatmap);
+  };
+
+  const handleClearAllocentricHeatmap = () => {
+    setAllocentricHeatmap(null);
+    setShowAllocentricHeatmap(false);
+  };
+
   return (
     <div className="visibility-sim">
       <input
@@ -514,6 +609,71 @@ function VisibilitySim() {
           </div>
         )}
 
+        {floorplanData && (
+          <div className="menu-section">
+            <h3 onClick={() => toggleSection('visibilityHeatmaps')} className="collapsible-header">
+              <span className={`arrow ${expandedSections.visibilityHeatmaps ? 'expanded' : ''}`}>▶</span>
+              Visibility Heatmaps
+            </h3>
+            {expandedSections.visibilityHeatmaps && (
+              <>
+                <div className="control-info">
+                  <p className="instruction">
+                    Compute visibility from all obstacle centers
+                  </p>
+                </div>
+
+                <label className="param-label">
+                  <span>Grid Resolution (pixels):</span>
+                  <input
+                    type="number"
+                    min="5"
+                    max="20"
+                    value={heatmapGridResolution}
+                    onChange={(e) => setHeatmapGridResolution(parseInt(e.target.value))}
+                  />
+                </label>
+
+                <button 
+                  onClick={handleComputeAllocentricHeatmap}
+                  disabled={computingHeatmap}
+                >
+                  {computingHeatmap ? 'Computing...' : 'Compute Allocentric Heatmap'}
+                </button>
+
+                {allocentricHeatmap && (
+                  <>
+                    <div className="pov-info">
+                      <p><strong>Heatmap Info:</strong></p>
+                      <p>Max Score: {allocentricHeatmap.maxScore}</p>
+                      <p>Grid: {heatmapGridResolution}px squares</p>
+                    </div>
+
+                    <label className="toggle-container">
+                      <input
+                        type="checkbox"
+                        checked={showAllocentricHeatmap}
+                        onChange={handleToggleAllocentricHeatmap}
+                      />
+                      <span className="toggle-label">Show Allocentric Heatmap</span>
+                    </label>
+
+                    <button onClick={handleClearAllocentricHeatmap} className="secondary-button">
+                      Clear Heatmap
+                    </button>
+                  </>
+                )}
+
+                {computingHeatmap && (
+                  <div className="computing-status">
+                    <div className="spinner"></div>
+                    Computing visibility heatmap...
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
         {selectedObstacleIndex !== null && (
           <div className="menu-section">
             <h3 onClick={() => toggleSection('selectedObstacle')} className="collapsible-header">
