@@ -29,9 +29,9 @@ install.bat
 ```
 
 The installation script will:
-- ✅ Check Python, Node.js, and C++ compiler
-- ✅ Install Python dependencies (Flask, Werkzeug)
-- ✅ Install React dependencies
+- Check Python, Node.js, and C++ compiler
+- Install Python dependencies (Flask, Werkzeug)
+- Install React dependencies
 
 ---
 
