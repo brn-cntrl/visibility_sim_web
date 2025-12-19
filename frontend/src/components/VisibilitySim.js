@@ -8,11 +8,11 @@ function VisibilitySim() {
   const [loading, setLoading] = useState(false);
   const [floorplanData, setFloorplanData] = useState(null);
   const [geometries, setGeometries] = useState([]);
+  
   const [pointOfView, setPointOfView] = useState(null);
   const [visibilityPolygon, setVisibilityPolygon] = useState(null);
   const [showVisibilityPolygon, setShowVisibilityPolygon] = useState(true);
   const [computingVisibility, setComputingVisibility] = useState(false);
-  
   const [canvasTransform, setCanvasTransform] = useState({
     scale: 1,
     offsetX: 0,
@@ -20,6 +20,9 @@ function VisibilitySim() {
   });
 
   const [features, setFeatures] = useState({});  // Map: obstacleIndex -> featureData
+  const [showSensitivity, setShowSensitivity] = useState(false);
+  const [allocentricData, setAllocentricData] = useState(null);
+  // const [selectedFeatureIndex, setSelectedFeatureIndex] = useState(null);
   const [selectedObstacleIndex, setSelectedObstacleIndex] = useState(null);
   const [allocentricHeatmap, setAllocentricHeatmap] = useState(null);
   const [showAllocentricHeatmap, setShowAllocentricHeatmap] = useState(false);
@@ -45,8 +48,8 @@ function VisibilitySim() {
     const canvas = canvasRef.current;
     if (canvas) {
       const ctx = canvas.getContext('2d');
-      canvas.width = canvas.offsetWidth;
-      canvas.height = canvas.offsetHeight;
+      canvas.width = 1200;
+      canvas.height = 800;
       drawInitialCanvas(ctx, canvas);
     }
   }, []);
@@ -128,7 +131,53 @@ function VisibilitySim() {
       ctx.fill();
       // ctx.stroke();
     }
-    
+    if (allocentricData) {
+      if (showSensitivity && allocentricData.clippedPolygon1 && allocentricData.clippedPolygon2) {
+        // Check if polygons actually have points
+        if (allocentricData.clippedPolygon1.length > 0 && allocentricData.clippedPolygon2.length > 0) {
+          // Draw outer clipped polygon (cyan)
+          ctx.fillStyle = 'rgba(0, 255, 255, 0.4)';
+          ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)';
+          ctx.lineWidth = 1;
+          ctx.beginPath();
+          const firstPoint1 = allocentricData.clippedPolygon1[0];
+          ctx.moveTo(firstPoint1[0], firstPoint1[1]);
+          for (let i = 1; i < allocentricData.clippedPolygon1.length; i++) {
+            ctx.lineTo(allocentricData.clippedPolygon1[i][0], allocentricData.clippedPolygon1[i][1]);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+          
+          // Draw inner clipped polygon (orange)
+          ctx.fillStyle = 'rgba(255, 165, 0, 0.5)';
+          ctx.strokeStyle = 'rgba(255, 140, 0, 0.8)';
+          ctx.beginPath();
+          const firstPoint2 = allocentricData.clippedPolygon2[0];
+          ctx.moveTo(firstPoint2[0], firstPoint2[1]);
+          for (let i = 1; i < allocentricData.clippedPolygon2.length; i++) {
+            ctx.lineTo(allocentricData.clippedPolygon2[i][0], allocentricData.clippedPolygon2[i][1]);
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
+      } else if (allocentricData.allocentricPolygon && allocentricData.allocentricPolygon.length > 0) {
+        // Occlude mode - full allocentric isovist
+        ctx.fillStyle = 'rgba(200, 140, 80, 0.35)';
+        ctx.strokeStyle = 'rgba(180, 120, 60, 0.6)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        const firstPoint = allocentricData.allocentricPolygon[0];
+        ctx.moveTo(firstPoint[0], firstPoint[1]);
+        for (let i = 1; i < allocentricData.allocentricPolygon.length; i++) {
+          ctx.lineTo(allocentricData.allocentricPolygon[i][0], allocentricData.allocentricPolygon[i][1]);
+        }
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+      }
+    }
     geometries.forEach((geom, index) => {
       if (geom.points.length < 2) return;
       
@@ -205,7 +254,7 @@ function VisibilitySim() {
       infoText += ` | POV: (${Math.round(pointOfView.canvasX)}, ${Math.round(pointOfView.canvasY)})`;
     }
     ctx.fillText(infoText, 10, canvas.height - 10);
-  }, [pointOfView, visibilityPolygon, showVisibilityPolygon, features, selectedObstacleIndex, allocentricHeatmap, showAllocentricHeatmap]);
+  }, [pointOfView, visibilityPolygon, showVisibilityPolygon, features, selectedObstacleIndex, allocentricHeatmap, showAllocentricHeatmap, allocentricData, showSensitivity]);
   
   useEffect(() => {
     if (floorplanData && canvasRef.current) {
@@ -424,6 +473,7 @@ function VisibilitySim() {
       ...prev,
       [selectedObstacleIndex]: newFeature
     }));
+    setTimeout(() => computeAllocentricVisibility(selectedObstacleIndex), 100);
   };
 
   const handleRemoveFeature = () => {
@@ -434,6 +484,7 @@ function VisibilitySim() {
       delete updated[selectedObstacleIndex];
       return updated;
     });
+    setAllocentricData(null);
   };
 
   const handleUpdateFeature = (property, value) => {
@@ -446,6 +497,95 @@ function VisibilitySim() {
         [property]: value
       }
     }));
+    if (property === 'visibilityValue' || property === 'detailVisibilityValue') {
+      setTimeout(() => computeAllocentricVisibility(selectedObstacleIndex), 50);
+    }
+  };
+
+  const computeAllocentricVisibility = async (obstacleIndex, useSensitivityMode = null) => {
+    if (!features[obstacleIndex] || !floorplanData) return;
+    
+    setComputingVisibility(true);
+    
+    const sensitivityMode = useSensitivityMode !== null ? useSensitivityMode : showSensitivity;
+    
+    console.log('=== COMPUTE ALLOCENTRIC VISIBILITY ===');
+    console.log('Obstacle Index:', obstacleIndex);
+    console.log('Sensitivity Mode:', sensitivityMode);
+    console.log('Feature:', features[obstacleIndex]);
+    
+    try {
+      const feature = features[obstacleIndex];
+      const obstaclesData = geometries.map(geom => ({
+        points: geom.points
+      }));
+      
+      const requestBody = {
+        featureCenter: { 
+          x: feature.viewboxPosition.x, 
+          y: feature.viewboxPosition.y 
+        },
+        obstacles: obstaclesData,
+        canvasWidth: floorplanData.viewbox.width,
+        canvasHeight: floorplanData.viewbox.height,
+        rayLength: 3000.0,
+        sensitivity1: feature.visibilityValue,
+        sensitivity2: feature.detailVisibilityValue,
+        showSensitivity: sensitivityMode,
+        excludeObstacleIndex: obstacleIndex
+      };
+      
+      console.log('Request body:', requestBody);
+      
+      const response = await fetch('http://localhost:5001/api/allocentric-visibility', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(requestBody)
+      });
+      
+      const data = await response.json();
+      
+      console.log('Backend response:', data);
+      
+      if (data.status === 'success') {
+        const { scale, offsetX, offsetY } = canvasTransform;
+        
+        console.log('Response data keys:', Object.keys(data.data));
+        console.log('clippedPolygon1 length:', data.data.clippedPolygon1?.length);
+        console.log('clippedPolygon2 length:', data.data.clippedPolygon2?.length);
+        console.log('allocentricPolygon length:', data.data.allocentricPolygon?.length);
+        
+        const transformedData = {
+          allocentricPolygon: data.data.allocentricPolygon?.map(point => [
+            offsetX + point[0] * scale,
+            offsetY + point[1] * scale
+          ]),
+          clippedPolygon1: data.data.clippedPolygon1?.map(point => [
+            offsetX + point[0] * scale,
+            offsetY + point[1] * scale
+          ]),
+          clippedPolygon2: data.data.clippedPolygon2?.map(point => [
+            offsetX + point[0] * scale,
+            offsetY + point[1] * scale
+          ])
+        };
+        
+        console.log('Transformed data:', transformedData);
+        console.log('Setting allocentricData with:', {
+          hasAllocentricPolygon: !!transformedData.allocentricPolygon,
+          hasClippedPolygon1: !!transformedData.clippedPolygon1,
+          hasClippedPolygon2: !!transformedData.clippedPolygon2,
+          clippedPolygon1Length: transformedData.clippedPolygon1?.length,
+          clippedPolygon2Length: transformedData.clippedPolygon2?.length
+        });
+        
+        setAllocentricData(transformedData);
+      }
+    } catch (error) {
+      console.error('Error computing allocentric visibility:', error);
+    } finally {
+      setComputingVisibility(false);
+    }
   };
 
   const handleComputeAllocentricHeatmap = async () => {
@@ -694,7 +834,24 @@ function VisibilitySim() {
                       <button onClick={handleRemoveFeature} className="secondary-button">
                         Remove Feature
                       </button>
-                      
+                      <div className="mode-toggle-container">
+                        <span className={`mode-label ${!showSensitivity ? 'active' : ''}`}>Occlude</span>
+                        <label className="toggle-switch">
+                          <input
+                            type="checkbox"
+                            checked={showSensitivity}
+                            onChange={(e) => {
+                              const newValue = e.target.checked;
+                              setShowSensitivity(newValue);
+                              if (features[selectedObstacleIndex]) {
+                                setTimeout(() => computeAllocentricVisibility(selectedObstacleIndex, newValue), 50);
+                              }
+                            }}
+                          />
+                          <span className="toggle-slider"></span>
+                        </label>
+                        <span className={`mode-label ${showSensitivity ? 'active' : ''}`}>Sensitivity</span>
+                      </div>
                       <div className="feature-parameters">
                         <h4>Feature Parameters</h4>
                         

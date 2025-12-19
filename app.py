@@ -11,6 +11,8 @@ app.config['MAX_CONTENT_LENGTH'] = 500 * 1024 * 1024  # 500MB max
 app.config['UPLOAD_FOLDER'] = tempfile.gettempdir()
 CORS(app)
 
+VIS_MODULE = get_visibility_module()
+
 # Allowed file extensions
 ALLOWED_EXTENSIONS = {'svg'}
 
@@ -106,6 +108,7 @@ def compute_visibility_polygon():
     - canvasWidth: number
     - canvasHeight: number
     """
+    global VIS_MODULE
     # Handle CORS preflight
     if request.method == 'OPTIONS':
         return '', 200
@@ -139,8 +142,7 @@ def compute_visibility_polygon():
                 obstacle_polygons.append(points)
         
         # Get visibility module and compute
-        vis_module = get_visibility_module()
-        visibility_points = vis_module.compute_visibility_polygon(
+        visibility_points = VIS_MODULE.compute_visibility_polygon(
             viewpoint=(viewpoint['x'], viewpoint['y']),
             obstacles=obstacle_polygons,
             screen_width=int(canvas_width),
@@ -167,6 +169,200 @@ def compute_visibility_polygon():
             'message': f'Error computing visibility polygon: {str(e)}'
         }), 500
 
+@app.route('/api/get-clipping-circles', methods=['POST', 'OPTIONS'])
+def get_clipping_circles():
+    """
+    Get clipping circles for obstacles from a point of view
+    Expects JSON with:
+    - viewpoint: {x, y}
+    - obstacles: array of geometry objects with points
+    - canvasWidth: number
+    - canvasHeight: number
+    """
+    global VIS_MODULE
+    # Handle CORS preflight
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        data = request.get_json()
+        
+        # Validate input
+        if not data:
+            return jsonify({
+                'status': 'error',
+                'message': 'No data provided'
+            }), 400
+        
+        viewpoint = data.get('viewpoint')
+        obstacles = data.get('obstacles', [])
+        canvas_width = data.get('canvasWidth', 1000)
+        canvas_height = data.get('canvasHeight', 800)
+        
+        if not viewpoint or 'x' not in viewpoint or 'y' not in viewpoint:
+            return jsonify({
+                'status': 'error',
+                'message': 'Invalid viewpoint data'
+            }), 400
+        
+        # Convert obstacles to the format expected by C++ module
+        obstacle_polygons = []
+        for obstacle in obstacles:
+            points = obstacle.get('points', [])
+            if len(points) >= 3:  # Valid polygon needs at least 3 points
+                obstacle_polygons.append(points)
+        
+        # Get visibility module and compute clipping circles
+        clipping_circles = VIS_MODULE.get_clipping_circles(
+            viewpoint=(viewpoint['x'], viewpoint['y']),
+            obstacles=obstacle_polygons,
+            screen_width=int(canvas_width),
+            screen_height=int(canvas_height)
+        )
+        
+        return jsonify({
+            'status': 'success',
+            'data': {
+                'clippingCircles': clipping_circles,
+                'viewpoint': viewpoint,
+                'obstacleCount': len(obstacle_polygons)
+            }
+        })
+        
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error getting clipping circles: {error_details}")
+        
+        return jsonify({
+            'status': 'error',
+            'message': f'Error getting clipping circles: {str(e)}'
+        }), 500
+
+@app.route('/api/allocentric-visibility', methods=['POST', 'OPTIONS'])
+def compute_allocentric_visibility():
+    """
+    Compute allocentric visibility polygon from a feature's center,
+    excluding its containing obstacle, with optional circle clipping
+    """
+    global VIS_MODULE
+    
+    if request.method == 'OPTIONS':
+        return '', 200
+    
+    try:
+        data = request.get_json()
+        
+        if not data:
+            return jsonify({'status': 'error', 'message': 'No data provided'}), 400
+        
+        feature_center = data.get('featureCenter')
+        obstacles = data.get('obstacles', [])
+        canvas_width = data.get('canvasWidth', 1000)
+        canvas_height = data.get('canvasHeight', 800)
+        ray_length = data.get('rayLength', 3000.0)
+        sensitivity1 = data.get('sensitivity1', 0.5)
+        sensitivity2 = data.get('sensitivity2', 0.3)
+        show_sensitivity = data.get('showSensitivity', False)
+        exclude_obstacle_index = data.get('excludeObstacleIndex')
+        
+        # Constants from openFrameworks code
+        VISIBILITY_VALUE_MULTIPLIER = 200.0
+        DETAIL_VISIBILITY_MULTIPLIER = 100.0
+        SQUARE_VISIBILITY_SCALE = 5.0
+        
+        if not feature_center or 'x' not in feature_center or 'y' not in feature_center:
+            return jsonify({'status': 'error', 'message': 'Invalid feature center'}), 400
+        
+        if exclude_obstacle_index is None:
+            return jsonify({'status': 'error', 'message': 'No obstacle index provided'}), 400
+        
+        # Convert obstacles to polygon format
+        obstacle_polygons = []
+        for obstacle in obstacles:
+            points = obstacle.get('points', [])
+            if len(points) >= 3:
+                obstacle_polygons.append(points)
+        
+        # Create modified obstacles list (excluding the specified obstacle)
+        modified_obstacles = [
+            obstacle_polygons[i] for i in range(len(obstacle_polygons))
+            if i != exclude_obstacle_index
+        ]
+        
+        print(f"Computing with {len(modified_obstacles)} obstacles (excluded {exclude_obstacle_index})")
+        
+        # Create Point for viewpoint
+        pov = VIS_MODULE.module.Point(float(feature_center['x']), float(feature_center['y']))
+        
+        # Create obstacle polygons
+        obstacle_list = []
+        for obstacle_points in modified_obstacles:
+            poly = VIS_MODULE.module.Polygon2()
+            for point in obstacle_points:
+                x, y = float(point[0]), float(point[1])
+                poly.add_vertex(x, y)
+            obstacle_list.append(poly)
+        
+        # Compute visibility polygon - KEEP AS Point OBJECTS
+        visibility_polygon_points = VIS_MODULE.module.compute_visibility_polygon(
+            pov,
+            obstacle_list,
+            int(canvas_width),
+            int(canvas_height),
+            float(ray_length)
+        )
+        
+        # Convert to tuples for JSON response
+        visibility_points = [(p.x, p.y) for p in visibility_polygon_points]
+        
+        response_data = {
+            'allocentricPolygon': visibility_points,
+            'featureCenter': feature_center,
+            'excludedObstacleIndex': exclude_obstacle_index
+        }
+        
+        # If sensitivity mode is enabled, clip with circles
+        if show_sensitivity:
+            radius1 = sensitivity1 * VISIBILITY_VALUE_MULTIPLIER * SQUARE_VISIBILITY_SCALE
+            radius2 = sensitivity2 * DETAIL_VISIBILITY_MULTIPLIER * SQUARE_VISIBILITY_SCALE
+            
+            print(f"Clipping - Radius1: {radius1:.1f}, Radius2: {radius2:.1f}")
+            
+            # Pass Point objects (not tuples!) to clipping function
+            clipped1 = VIS_MODULE.module.clip_circle_with_visibility_polygon(
+                visibility_polygon_points,  # Point objects
+                pov,                        # Point object
+                float(radius1),
+                128
+            )
+            
+            clipped2 = VIS_MODULE.module.clip_circle_with_visibility_polygon(
+                visibility_polygon_points,  # Point objects
+                pov,                        # Point object
+                float(radius2),
+                128
+            )
+            
+            # Convert clipped results to tuples
+            clipped1_points = [(p.x, p.y) for p in clipped1]
+            clipped2_points = [(p.x, p.y) for p in clipped2]
+            
+            print(f"✓ Clipped1: {len(clipped1_points)} points, Clipped2: {len(clipped2_points)} points")
+            
+            response_data['clippedPolygon1'] = clipped1_points
+            response_data['clippedPolygon2'] = clipped2_points
+            response_data['radius1'] = radius1
+            response_data['radius2'] = radius2
+        
+        return jsonify({'status': 'success', 'data': response_data})
+        
+    except Exception as e:
+        import traceback
+        error_details = traceback.format_exc()
+        print(f"Error: {error_details}")
+        return jsonify({'status': 'error', 'message': str(e)}), 500
+    
 @app.route('/api/visibility-heatmap', methods=['POST', 'OPTIONS'])
 def compute_visibility_heatmap():
     """
@@ -178,6 +374,7 @@ def compute_visibility_heatmap():
     - gridResolution: number (grid square size in pixels)
     - rayLength: number
     """
+    global VIS_MODULE
     if request.method == 'OPTIONS':
         return '', 200
     
@@ -208,9 +405,6 @@ def compute_visibility_heatmap():
             points = obstacle.get('points', [])
             if len(points) >= 3:
                 obstacle_polygons.append(points)
-        
-        # Get visibility module
-        vis_module = get_visibility_module()
         
         # Calculate object centers (excluding boundary at index 0)
         object_centers = []
@@ -244,17 +438,17 @@ def compute_visibility_heatmap():
             ]
             
             # Compute visibility polygon from this center
-            pov = vis_module.module.Point(float(center_x), float(center_y))
+            pov = VIS_MODULE.module.Point(float(center_x), float(center_y))
             
             obstacle_list = []
             for obstacle_points in modified_obstacles:
-                poly = vis_module.module.Polygon2()
+                poly = VIS_MODULE.module.Polygon2()
                 for point in obstacle_points:
                     x, y = float(point[0]), float(point[1])
                     poly.add_vertex(x, y)
                 obstacle_list.append(poly)
             
-            visibility_polygon = vis_module.module.compute_visibility_polygon(
+            visibility_polygon = VIS_MODULE.module.compute_visibility_polygon(
                 pov,
                 obstacle_list,
                 int(canvas_width),
@@ -368,7 +562,7 @@ def get_heatmap_color(normalized_value):
     else:
         t = (normalized_value - 0.75) / 0.25
         return f'rgba(255, {255 - int(t * 255)}, 0, 150)'
-    
+        
 @app.route('/api/greeting', methods=['GET'])
 def get_greeting():
     return jsonify({
@@ -391,7 +585,7 @@ def echo_message():
 def health():
     """Check if module loaded correctly"""
     try:
-        vis_module = get_visibility_module()
+        vis_module = VIS_MODULE
         module_loaded = True
     except Exception as e:
         module_loaded = False
