@@ -142,27 +142,8 @@ The application will open automatically at **http://localhost:3000**
 
 **Solution**:
 1. Verify the `.so` or `.pyd` file exists in the project root
-2. Rebuild the module: `python3 setup.py build_ext --inplace`
-3. Check Python version matches (3.11.x)
-
-### C++ Build Fails on Windows
-
-**Error**: `error: Microsoft Visual C++ 14.0 or greater is required`
-
-**Solution**:
-1. Install Visual Studio Build Tools 2022
-2. Select "Desktop development with C++" workload
-3. Restart terminal and retry
-
-### C++ Build Fails on macOS
-
-**Error**: `clang: error: invalid deployment target`
-
-**Solution**:
-```bash
-export MACOSX_DEPLOYMENT_TARGET=10.14
-python3 setup.py build_ext --inplace
-```
+2. Check Python version matches (3.11.x)
+3. If the problem persists, contact brn.cntrll at gmail
 
 ### Port Already in Use
 
@@ -191,29 +172,6 @@ If you get import errors, install missing packages:
 ```bash
 pip3 install <package-name>
 ```
-
----
-
-## Project Structure
-```
-visibility-simulator/
-├── app.py                      # Flask backend
-├── visibility_loader.py        # Module loader
-├── visibility_module.py        # Python wrapper
-├── SVGFloorplanProcessor.py    # SVG processing
-├── setup.py                    # C++ build script
-├── visibility_polygon*.so/pyd  # Compiled C++ module
-├── frontend/                   # React application
-│   ├── src/
-│   │   └── components/
-│   │       └── VisibilitySim.jsx
-│   ├── package.json
-│   └── ...
-├── install.sh                  # Mac/Linux installer
-├── install.bat                 # Windows installer
-└── README.md                   # This file
-```
-
 ---
 
 ## Usage
@@ -233,7 +191,7 @@ visibility-simulator/
 
 - **OS**: macOS 10.14+, Linux (Ubuntu 18.04+), Windows 10+
 - **RAM**: 4GB minimum, 8GB recommended
-- **Python**: 3.8+ (3.11 recommended)
+- **Python**: 3.11 recommended
 - **Node.js**: 14+
 - **Disk Space**: 500MB for dependencies
 
@@ -253,8 +211,8 @@ If you encounter issues:
 
 ## License
 
-[Your License Here]
+[LICENSE.md](LICENSE.md)
 
 ## Contact
 
-[Your Contact Information]
+brn.cntrll at gmail
