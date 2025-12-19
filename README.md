@@ -30,8 +30,7 @@ install.bat
 
 The installation script will:
 - ✅ Check Python, Node.js, and C++ compiler
-- ✅ Install Python dependencies (Flask, pybind11)
-- ✅ Build the C++ visibility module
+- ✅ Install Python dependencies (Flask, Werkzeug)
 - ✅ Install React dependencies
 
 ---
@@ -98,10 +97,10 @@ sudo apt-get install build-essential python3-dev
 ### 2. Install Python Dependencies
 ```bash
 # macOS/Linux
-pip3 install Flask==3.1.0 flask-cors==6.0.1 Werkzeug==3.1.3 pybind11
+pip3 install Flask==3.1.0 flask-cors==6.0.1 Werkzeug==3.1.3 
 
 # Windows
-pip install Flask==3.1.0 flask-cors==6.0.1 Werkzeug==3.1.3 pybind11
+pip install Flask==3.1.0 flask-cors==6.0.1 Werkzeug==3.1.3 
 ```
 ### 3. Install React Dependencies
 ```bash

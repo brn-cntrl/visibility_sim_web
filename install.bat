@@ -68,7 +68,7 @@ if errorlevel 1 (
 REM Install Python dependencies
 echo.
 echo Installing Python dependencies...
-pip install Flask==3.1.0 flask-cors==6.0.1 Werkzeug==3.1.3 pybind11
+pip install Flask==3.1.0 flask-cors==6.0.1 Werkzeug==3.1.3 
 if errorlevel 1 (
     echo [ERROR] Failed to install Python dependencies
     pause
@@ -78,31 +78,6 @@ echo [OK] Python dependencies installed
 
 REM Build C++ visibility module
 echo.
-echo Building C++ visibility module...
-if not exist setup.py (
-    echo [ERROR] setup.py not found
-    pause
-    exit /b 1
-)
-
-python setup.py build_ext --inplace
-if errorlevel 1 (
-    echo [ERROR] C++ module build failed
-    echo.
-    echo Make sure you have Visual Studio Build Tools installed:
-    echo https://visualstudio.microsoft.com/downloads/#build-tools-for-visual-studio-2022
-    pause
-    exit /b 1
-)
-
-REM Verify .pyd file exists
-dir /b visibility_polygon*.pyd >nul 2>&1
-if errorlevel 1 (
-    echo [ERROR] Built module not found
-    pause
-    exit /b 1
-)
-echo [OK] C++ module built successfully
 
 REM Install React dependencies
 echo.

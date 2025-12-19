@@ -103,37 +103,13 @@ fi
 # Install Python dependencies
 echo ""
 echo "Installing Python dependencies..."
-pip3 install --break-system-packages Flask==3.1.0 flask-cors==6.0.1 Werkzeug==3.1.3 pybind11 2>/dev/null || \
-pip3 install Flask==3.1.0 flask-cors==6.0.1 Werkzeug==3.1.3 pybind11
+pip3 install --break-system-packages Flask==3.1.0 flask-cors==6.0.1 Werkzeug==3.1.3 2>/dev/null || \
+pip3 install Flask==3.1.0 flask-cors==6.0.1 Werkzeug==3.1.3 
 
 if [ $? -eq 0 ]; then
     echo -e "${GREEN}✓ Python dependencies installed${NC}"
 else
     echo -e "${RED}ERROR: Failed to install Python dependencies${NC}"
-    exit 1
-fi
-
-# Build C++ visibility module
-echo ""
-echo "Building C++ visibility module..."
-if [ -f "setup.py" ]; then
-    python3 setup.py build_ext --inplace
-    if [ $? -eq 0 ]; then
-        echo -e "${GREEN}✓ C++ module built successfully${NC}"
-        
-        # Verify the .so file exists
-        if ls visibility_polygon*.so 1> /dev/null 2>&1; then
-            echo -e "${GREEN}✓ Found visibility_polygon module${NC}"
-        else
-            echo -e "${RED}ERROR: Built module not found${NC}"
-            exit 1
-        fi
-    else
-        echo -e "${RED}ERROR: C++ module build failed${NC}"
-        exit 1
-    fi
-else
-    echo -e "${RED}ERROR: setup.py not found${NC}"
     exit 1
 fi
 
