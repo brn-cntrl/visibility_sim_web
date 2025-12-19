@@ -301,7 +301,7 @@ function VisibilitySim() {
       const formData = new FormData();
       formData.append('file', file);
 
-      const response = await fetch('http://localhost:5001/api/import', {
+      const response = await fetch('/api/import', {
         method: 'POST',
         body: formData,
       });
@@ -378,7 +378,7 @@ function VisibilitySim() {
         points: geom.points
       }));
       
-      const response = await fetch('http://localhost:5001/api/visibility-polygon', {
+      const response = await fetch('/api/visibility-polygon', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -537,7 +537,7 @@ function VisibilitySim() {
       
       console.log('Request body:', requestBody);
       
-      const response = await fetch('http://localhost:5001/api/allocentric-visibility', {
+      const response = await fetch('/api/allocentric-visibility', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(requestBody)
@@ -605,7 +605,7 @@ function VisibilitySim() {
         points: geom.points
       }));
 
-      const response = await fetch('http://localhost:5001/api/visibility-heatmap', {
+      const response = await fetch('/api/visibility-heatmap', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
