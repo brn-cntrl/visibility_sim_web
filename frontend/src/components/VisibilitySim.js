@@ -684,12 +684,13 @@ function VisibilitySim() {
             <span className={`arrow ${expandedSections.fileOperations ? 'expanded' : ''}`}>▶</span>
             File Operations
           </h3>
+          
           {expandedSections.fileOperations && (
             <>
               <button onClick={handleImport} disabled={loading}>
                 {loading ? 'Processing...' : 'Import SVG'}
               </button>
-              
+              <p className="instruction">Use SHIFT+Click to download Canvas Image</p>
               {floorplanData && (
                 <div className="file-info">
                   <p><strong>Obstacles:</strong> {floorplanData.obstacleCount}</p>
