@@ -584,3 +584,20 @@ summary:hover {
   width: 80px;
   max-width: 80px;
 }
+
+.computing-status {
+  opacity: 1;
+  transition: opacity 0.2s ease;
+  min-height: 40px; /* Reserve consistent space */
+}
+
+.computing-status.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.coord-value {
+  display: inline-block;
+  min-width: 120px;
+  font-family: 'Courier New', monospace;
+}

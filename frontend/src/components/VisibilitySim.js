@@ -720,8 +720,8 @@ function VisibilitySim() {
                   <>
                     <div className="pov-info">
                       <p><strong>Point of View:</strong></p>
-                      <p>Canvas: ({Math.round(pointOfView.canvasX)}, {Math.round(pointOfView.canvasY)})</p>
-                      <p>Viewbox: ({pointOfView.viewboxX.toFixed(1)}, {pointOfView.viewboxY.toFixed(1)})</p>
+                      <p>Canvas: <span className="coord-value">({Math.round(pointOfView.canvasX)}, {Math.round(pointOfView.canvasY)})</span></p>
+                      <p>Viewbox: <span className="coord-value">({pointOfView.viewboxX.toFixed(1)}, {pointOfView.viewboxY.toFixed(1)})</span></p>
                     </div>
                     
                     <label className="toggle-container">
@@ -737,12 +737,15 @@ function VisibilitySim() {
                       Clear Point of View
                     </button>
                     
-                    {computingVisibility && (
-                      <div className="computing-status">
-                        <div className="spinner"></div>
-                        Computing visibility...
-                      </div>
-                    )}
+                    <div className="computing-status" style={{ 
+                      opacity: computingVisibility ? 1 : 0,
+                      minHeight: '30px',
+                      transition: 'opacity 0.15s',
+                      marginBottom: '-50px'
+                    }}>
+                      <div className="spinner"></div>
+                      Computing visibility...
+                    </div>
                   </>
                 )}
               </>
