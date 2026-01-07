@@ -133,9 +133,7 @@ function VisibilitySim() {
     }
     if (allocentricData) {
       if (showSensitivity && allocentricData.clippedPolygon1 && allocentricData.clippedPolygon2) {
-        // Check if polygons actually have points
         if (allocentricData.clippedPolygon1.length > 0 && allocentricData.clippedPolygon2.length > 0) {
-          // Draw outer clipped polygon (cyan)
           ctx.fillStyle = 'rgba(0, 255, 255, 0.4)';
           ctx.strokeStyle = 'rgba(0, 255, 255, 0.8)';
           ctx.lineWidth = 1;
@@ -148,10 +146,8 @@ function VisibilitySim() {
           ctx.closePath();
           ctx.fill();
           ctx.stroke();
-          
-          // Draw inner clipped polygon (orange)
-          ctx.fillStyle = 'rgba(255, 165, 0, 0.5)';
-          ctx.strokeStyle = 'rgba(255, 140, 0, 0.8)';
+          ctx.fillStyle = 'rgba(50, 150, 200, 0.5)';
+          ctx.strokeStyle = 'rgba(40, 140, 180, 0.8)';
           ctx.beginPath();
           const firstPoint2 = allocentricData.clippedPolygon2[0];
           ctx.moveTo(firstPoint2[0], firstPoint2[1]);
